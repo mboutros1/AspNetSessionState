@@ -11,30 +11,29 @@ namespace Microsoft.AspNet.SessionState
     {
         public static SqlParameterCollection AddSessionIdParameter(this SqlParameterCollection pc, string id)
         {
-            var param = new SqlParameter($"@{SqlParameterName.SessionId}", SqlDbType.NVarChar, SqlSessionStateRepositoryUtil.IdLength);
-            param.Value = id;
+            var param = new SqlParameter($"@{SqlParameterName.SessionId}", SqlDbType.NVarChar,
+                SqlSessionStateRepositoryUtil.IdLength) {Value = id};
             pc.Add(param);
-
             return pc;
         }
         
         public static SqlParameterCollection AddLockedParameter(this SqlParameterCollection pc)
         {
-            var param = new SqlParameter($"@{SqlParameterName.Locked}", SqlDbType.Bit);
-            param.Direction = ParameterDirection.Output;
-            param.Value = Convert.DBNull;
+            var param = new SqlParameter($"@{SqlParameterName.Locked}", SqlDbType.Bit)
+            {
+                Direction = ParameterDirection.Output, Value = Convert.DBNull
+            };
             pc.Add(param);
-
             return pc;
         }
 
         public static SqlParameterCollection AddLockAgeParameter(this SqlParameterCollection pc)
         {
-            var param = new SqlParameter($"@{SqlParameterName.LockAge}", SqlDbType.Int);
-            param.Direction = ParameterDirection.Output;
-            param.Value = Convert.DBNull;
+            var param = new SqlParameter($"@{SqlParameterName.LockAge}", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output, Value = Convert.DBNull
+            };
             pc.Add(param);
-
             return pc;
         }
 
@@ -51,35 +50,30 @@ namespace Microsoft.AspNet.SessionState
                 param.Value = lockId;
             }
             pc.Add(param);
-
             return pc;
         }
 
         public static SqlParameterCollection AddActionFlagsParameter(this SqlParameterCollection pc)
         {
-            var param = new SqlParameter($"@{SqlParameterName.ActionFlags}", SqlDbType.Int);
-            param.Direction = ParameterDirection.Output;
-            param.Value = Convert.DBNull;
+            var param = new SqlParameter($"@{SqlParameterName.ActionFlags}", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output, Value = Convert.DBNull
+            };
             pc.Add(param);
-
             return pc;
         }
 
         public static SqlParameterCollection AddTimeoutParameter(this SqlParameterCollection pc, int timeout)
         {
-            var param = new SqlParameter($"@{SqlParameterName.Timeout}", SqlDbType.Int);
-            param.Value = timeout;
+            var param = new SqlParameter($"@{SqlParameterName.Timeout}", SqlDbType.Int) {Value = timeout};
             pc.Add(param);
-
             return pc;
         }
 
         public static SqlParameterCollection AddSessionItemLongParameter(this SqlParameterCollection pc, int length, byte[] buf)
         {
-            var param = new SqlParameter($"@{SqlParameterName.SessionItemLong}", SqlDbType.Image, length);
-            param.Value = buf;
+            var param = new SqlParameter($"@{SqlParameterName.SessionItemLong}", SqlDbType.Image, length) {Value = buf};
             pc.Add(param);
-
             return pc;
         }
     }

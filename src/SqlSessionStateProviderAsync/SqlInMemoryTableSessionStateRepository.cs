@@ -17,10 +17,6 @@ namespace Microsoft.AspNet.SessionState
         private const int DEFAULT_RETRY_NUM = 10;
         private const int DEFAULT_RETRY_INERVAL = 1;
 
-        private int _retryIntervalMilSec;
-        private string _connectString;
-        private int _maxRetryNum;
-        private int _commandTimeout;
         private SqlCommandHelper _commandHelper;
 
         #region Sql statement
@@ -282,36 +278,24 @@ namespace Microsoft.AspNet.SessionState
         public SqlInMemoryTableSessionStateRepository(string connectionString, int commandTimeout, 
             int? retryInterval, int? retryNum)
         {
-            this._retryIntervalMilSec = retryInterval.HasValue ? retryInterval.Value : DEFAULT_RETRY_INERVAL;
-            this._connectString = connectionString;
-            this._maxRetryNum = retryNum.HasValue ? retryNum.Value : DEFAULT_RETRY_NUM;
-            this._commandTimeout = commandTimeout;
+            this.RetryIntervalMilSec = retryInterval ?? DEFAULT_RETRY_INERVAL;
+            this.ConnectString = connectionString;
+            this.MaxRetryNum = retryNum ?? DEFAULT_RETRY_NUM;
+            this.CommandTimeout = commandTimeout;
             this._commandHelper = new SqlCommandHelper(commandTimeout);
         }
 
-        internal int RetryIntervalMilSec
-        {
-            get { return _retryIntervalMilSec; }
-        }
+        internal int RetryIntervalMilSec { get; }
 
-        internal string ConnectString
-        {
-            get { return _connectString; }
-        }
+        internal string ConnectString { get; }
 
-        internal int MaxRetryNum
-        {
-            get { return _maxRetryNum; }
-        }
+        internal int MaxRetryNum { get; }
 
-        internal int CommandTimeout
-        {
-            get { return _commandTimeout; }
-        }
+        internal int CommandTimeout { get; }
 
         public void CreateSessionStateTable()
         {
-            using (var connection = new SqlConnection(_connectString))
+            using (var connection = new SqlConnection(ConnectString))
             {
                 try
                 {
@@ -340,7 +324,7 @@ namespace Microsoft.AspNet.SessionState
 
         public void DeleteExpiredSessions()
         {
-            using (var connection = new SqlConnection(_connectString))
+            using (var connection = new SqlConnection(ConnectString))
             {
                 var cmd = _commandHelper.CreateDeleteExpiredSessionsCmd(DeleteExpiredSessionsSql);
                 var task = SqlSessionStateRepositoryUtil.SqlExecuteNonQueryWithRetryAsync(connection, cmd, CanRetry).ConfigureAwait(false);
@@ -367,7 +351,7 @@ namespace Microsoft.AspNet.SessionState
                 cmd = _commandHelper.CreateGetStateItemCmd(GetStateItemSql, id);
             }
 
-            using (var connection = new SqlConnection(_connectString))
+            using (var connection = new SqlConnection(ConnectString))
             {
                 using (var reader = await SqlSessionStateRepositoryUtil.SqlExecuteReaderWithRetryAsync(connection, cmd, CanRetry))
                 {
@@ -417,7 +401,7 @@ namespace Microsoft.AspNet.SessionState
                 cmd = _commandHelper.CreateInsertStateItemLongCmd(InsertStateItemLongSql, id, buf, length, timeout);
             }
 
-            using (var connection = new SqlConnection(_connectString))
+            using (var connection = new SqlConnection(ConnectString))
             {
                 await SqlSessionStateRepositoryUtil.SqlExecuteNonQueryWithRetryAsync(connection, cmd, CanRetry, newItem);
             }
@@ -426,7 +410,7 @@ namespace Microsoft.AspNet.SessionState
         public async Task ResetSessionItemTimeoutAsync(string id)
         {
             var cmd = _commandHelper.CreateResetItemTimeoutCmd(ResetItemTimeoutSql, id);
-            using (var connection = new SqlConnection(_connectString))
+            using (var connection = new SqlConnection(ConnectString))
             {
                 await SqlSessionStateRepositoryUtil.SqlExecuteNonQueryWithRetryAsync(connection, cmd, CanRetry);
             }
@@ -435,7 +419,7 @@ namespace Microsoft.AspNet.SessionState
         public async Task RemoveSessionItemAsync(string id, object lockId)
         {
             var cmd = _commandHelper.CreateRemoveStateItemCmd(RemoveStateItemSql, id, lockId);
-            using (var connection = new SqlConnection(_connectString))
+            using (var connection = new SqlConnection(ConnectString))
             {
                 await SqlSessionStateRepositoryUtil.SqlExecuteNonQueryWithRetryAsync(connection, cmd, CanRetry);
             }
@@ -444,7 +428,7 @@ namespace Microsoft.AspNet.SessionState
         public async Task ReleaseSessionItemAsync(string id, object lockId)
         {
             var cmd = _commandHelper.CreateReleaseItemExclusiveCmd(ReleaseItemExclusiveSql, id, lockId);
-            using (var connection = new SqlConnection(_connectString))
+            using (var connection = new SqlConnection(ConnectString))
             {
                 await SqlSessionStateRepositoryUtil.SqlExecuteNonQueryWithRetryAsync(connection, cmd, CanRetry);
             }
@@ -453,7 +437,7 @@ namespace Microsoft.AspNet.SessionState
         public async Task CreateUninitializedSessionItemAsync(string id, int length, byte[] buf, int timeout)
         {
             var cmd = _commandHelper.CreateTempInsertUninitializedItemCmd(TempInsertUninitializedItemSql, id, length, buf, timeout);
-            using (var connection = new SqlConnection(_connectString))
+            using (var connection = new SqlConnection(ConnectString))
             {
                 await SqlSessionStateRepositoryUtil.SqlExecuteNonQueryWithRetryAsync(connection, cmd, CanRetry, true);
             }
@@ -461,7 +445,7 @@ namespace Microsoft.AspNet.SessionState
 
         private bool CanRetry(RetryCheckParameter parameter)
         {
-            if (parameter.RetryCount >= _maxRetryNum ||
+            if (parameter.RetryCount >= MaxRetryNum ||
                 !ShouldUseInMemoryTableRetry(parameter.Exception))
             {
                 return false;
@@ -469,7 +453,7 @@ namespace Microsoft.AspNet.SessionState
 
             // this actually may sleep up to 15ms
             // but it's better than spinning CPU
-            Thread.Sleep(_retryIntervalMilSec);
+            Thread.Sleep(RetryIntervalMilSec);
             parameter.RetryCount++;
 
             return true;

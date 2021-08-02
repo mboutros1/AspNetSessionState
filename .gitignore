@@ -5,3 +5,4 @@ msbuild.*
 obj/
 /packages/
 .binaries/
+*.user
