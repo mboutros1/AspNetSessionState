@@ -1,10 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license. See the License.txt file in the project root for full license information.
 
-namespace Microsoft.AspNet.SessionState
-{
-    using System.Data.SqlClient;
+using System.Data.SqlClient;
 
+namespace MB.HybridSessionProviderAsync
+{
     static class SqlCommandExtension
     {
         public static SqlParameter GetOutPutParameterValue(this SqlCommand cmd, SqlParameterName parameterName)

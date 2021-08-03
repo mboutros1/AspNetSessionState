@@ -1,12 +1,12 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license. See the License.txt file in the project root for full license information.
 
-namespace Microsoft.AspNet.SessionState
-{
-    using System;
-    using System.Data;
-    using System.Data.SqlClient;
+using System;
+using System.Data;
+using System.Data.SqlClient;
 
+namespace MB.HybridSessionProviderAsync
+{
     static class SqlParameterCollectionExtension
     {
         public static SqlParameterCollection AddSessionIdParameter(this SqlParameterCollection pc, string id)

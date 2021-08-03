@@ -1,26 +1,28 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license. See the License.txt file in the project root for full license information.
 
-namespace Microsoft.AspNet.SessionState
-{
-    using Resources;
-    using System;
-    using System.Data.SqlClient;
-    using System.Diagnostics;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using System.Web;
-    using System.Web.SessionState;
+using System;
+using System.Data.SqlClient;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Web;
+using System.Web.SessionState;
 
-    class SqlInMemoryTableSessionStateRepository : ISqlSessionStateRepository
+using MB.HybridSessionProviderAsync.Resources;
+namespace MB.HybridSessionProviderAsync
+{
+    /// <summary>
+    /// SQL server version must be >= 8.0
+    /// </summary>
+    class SqlSessionStateRepository : ISqlSessionStateRepository
     {
+        private const int DEFAULT_RETRY_INTERVAL = 1000;
         private const int DEFAULT_RETRY_NUM = 10;
-        private const int DEFAULT_RETRY_INERVAL = 1;
 
         private SqlCommandHelper _commandHelper;
 
-        #region Sql statement
-        // Most of the SQL statements should just work, the following statements are different
+        #region sql statement
+        // SQL server version must be >= 8.0
         #region CreateSessionTable
         private static readonly string CreateSessionTableSql = $@"
                IF NOT EXISTS (SELECT * 
@@ -28,7 +30,7 @@ namespace Microsoft.AspNet.SessionState
                  WHERE TABLE_NAME = '{SqlSessionStateRepositoryUtil.TableName}')
                BEGIN
                 CREATE TABLE {SqlSessionStateRepositoryUtil.TableName} (
-                SessionId           nvarchar(88)    COLLATE Latin1_General_100_BIN2 NOT NULL,
+                SessionId           nvarchar(88)    NOT NULL PRIMARY KEY,
                 Created             datetime        NOT NULL DEFAULT GETUTCDATE(),
                 Expires             datetime        NOT NULL,
                 LockDate            datetime        NOT NULL,
@@ -36,166 +38,22 @@ namespace Microsoft.AspNet.SessionState
                 LockCookie          int             NOT NULL,
                 Timeout             int             NOT NULL,
                 Locked              bit             NOT NULL,
-                SessionItemLong     varbinary(max)           NULL,
+                SessionItemLong     image           NULL,
                 Flags               int             NOT NULL DEFAULT 0,
-                INDEX [Index_Expires] NONCLUSTERED 
-                (
-	                [Expires] ASC
-                ),
-                PRIMARY KEY NONCLUSTERED HASH 
-                (
-	                [SessionId]
-                )WITH ( BUCKET_COUNT = 33554432)
-                )WITH ( MEMORY_OPTIMIZED = ON , DURABILITY = SCHEMA_ONLY )                
-              END";
-        #endregion
-
-        #region GetStateItemExclusive            
-        private static readonly string GetStateItemExclusiveSql = $@"
-                    DECLARE @textptr AS varbinary(max)
-                    DECLARE @length AS int
-                    DECLARE @now AS datetime
-                    DECLARE @nowLocal AS datetime
-
-                    SET @now = GETUTCDATE()
-                    SET @nowLocal = GETDATE()
-
-                    DECLARE @LockedCheck bit
-                    DECLARE @Flags int
-
-                    SELECT @LockedCheck = Locked, @Flags = Flags 
-                        FROM {SqlSessionStateRepositoryUtil.TableName}
-                        WHERE SessionID = @{SqlParameterName.SessionId}
-                    IF @Flags&1 <> 0
-                    BEGIN
-                        SET @actionFlags = 1
-                        UPDATE {SqlSessionStateRepositoryUtil.TableName}
-                            SET Flags = Flags & ~1 WHERE SessionID = @{SqlParameterName.SessionId}
-                    END
-                    ELSE
-                        SET @{SqlParameterName.ActionFlags} = 0
-
-                    IF @LockedCheck = 1
-                    BEGIN
-                        UPDATE {SqlSessionStateRepositoryUtil.TableName}
-                        SET Expires = DATEADD(n, Timeout, @now), 
-                            @{SqlParameterName.LockAge} = DATEDIFF(second, LockDate, @now),
-                            @{SqlParameterName.LockCookie} = LockCookie,
-                            --@textptr = NULL,
-                            @length = NULL,
-                            @{SqlParameterName.Locked} = 1
-                        WHERE SessionId = @{SqlParameterName.SessionId}
-                    END
-                    ELSE
-                    BEGIN
-                        UPDATE {SqlSessionStateRepositoryUtil.TableName}
-                        SET Expires = DATEADD(n, Timeout, @now), 
-                            LockDate = @now,
-                            LockDateLocal = @nowlocal,
-                            @{SqlParameterName.LockAge} = 0,
-                            @{SqlParameterName.LockCookie} = LockCookie = LockCookie + 1,
-                            @textptr = SessionItemLong,
-                            @length = 1,
-                            @{SqlParameterName.Locked} = 0,
-                            Locked = 1
-                        WHERE SessionId = @{SqlParameterName.SessionId}
-
-                        IF @TextPtr IS NOT NULL
-                            SELECT @TextPtr
-                    END
-                ";
-        #endregion
-
-        #region GetStateItem            
-        private static readonly string GetStateItemSql = $@"                
-                    DECLARE @textptr AS varbinary(max)
-                    DECLARE @length AS int
-                    DECLARE @now AS datetime
-                    SET @now = GETUTCDATE()
-
-                    UPDATE {SqlSessionStateRepositoryUtil.TableName}
-                    SET Expires = DATEADD(n, Timeout, @now), 
-                        @{SqlParameterName.Locked} = Locked,
-                        @{SqlParameterName.LockAge} = DATEDIFF(second, LockDate, @now),
-                        @{SqlParameterName.LockCookie} = LockCookie,                   
-                        @textptr = CASE @{SqlParameterName.Locked}
-                            WHEN 0 THEN SessionItemLong
-                            ELSE NULL
-                            END,
-                        @length = CASE @{SqlParameterName.Locked}
-                            WHEN 0 THEN DATALENGTH(SessionItemLong)
-                            ELSE NULL
-                            END,
-                            /* If the Uninitialized flag (0x1) if it is set,
-                            remove it and return InitializeItem (0x1) in actionFlags */
-                        Flags = CASE
-                            WHEN (Flags & 1) <> 0 THEN (Flags & ~1)
-                            ELSE Flags
-                            END,
-                        @{SqlParameterName.ActionFlags} = CASE
-                            WHEN (Flags & 1) <> 0 THEN 1
-                            ELSE 0
-                            END
-                    WHERE SessionId = @{SqlParameterName.SessionId}
-                    IF @length IS NOT NULL BEGIN
-                        SELECT @textptr
-                    END
-            ";
-        #endregion
-
-        #region DeleteExpiredSessions
-        private static readonly string DeleteExpiredSessionsSql = $@"
-                SET NOCOUNT ON
-                SET DEADLOCK_PRIORITY LOW 
-
-                DECLARE @now datetime
-                SET @now = GETUTCDATE() 
-
-                CREATE TABLE #tblExpiredSessions 
-                ( 
-                    SessionId nvarchar({SqlSessionStateRepositoryUtil.IdLength}) NOT NULL PRIMARY KEY
-                )
-
-                INSERT #tblExpiredSessions (SessionId)
-                    SELECT SessionId
-                    FROM {SqlSessionStateRepositoryUtil.TableName} WITH (SNAPSHOT)
-                    WHERE Expires < @now
-
-                IF @@ROWCOUNT <> 0 
-                BEGIN 
-                    DECLARE ExpiredSessionCursor CURSOR LOCAL FORWARD_ONLY READ_ONLY
-                    FOR SELECT SessionId FROM #tblExpiredSessions 
-
-                    DECLARE @SessionId nvarchar({SqlSessionStateRepositoryUtil.IdLength})
-
-                    OPEN ExpiredSessionCursor
-
-                    FETCH NEXT FROM ExpiredSessionCursor INTO @SessionId
-
-                    WHILE @@FETCH_STATUS = 0 
-                        BEGIN
-                            DELETE FROM {SqlSessionStateRepositoryUtil.TableName} WHERE SessionId = @SessionId AND Expires < @now
-                            FETCH NEXT FROM ExpiredSessionCursor INTO @SessionId
-                        END
-
-                    CLOSE ExpiredSessionCursor
-
-                    DEALLOCATE ExpiredSessionCursor
-
-                END 
-
-                DROP TABLE #tblExpiredSessions";
-        #endregion
+                ) 
+                CREATE NONCLUSTERED INDEX Index_Expires ON {SqlSessionStateRepositoryUtil.TableName} (Expires)
+            END";
+            #endregion
 
         #region TempInsertUninitializedItem
-        private static readonly string TempInsertUninitializedItemSql = $@"
+            private static readonly string TempInsertUninitializedItemSql = $@"
             DECLARE @now AS datetime
             DECLARE @nowLocal AS datetime
             SET @now = GETUTCDATE()
             SET @nowLocal = GETDATE()
 
             INSERT {SqlSessionStateRepositoryUtil.TableName} (SessionId, 
-                 SessionItemLong,
+                 SessionItemLong, 
                  Timeout, 
                  Expires, 
                  Locked, 
@@ -213,6 +71,104 @@ namespace Microsoft.AspNet.SessionState
                  @nowLocal,
                  1,
                  1)";
+            #endregion
+
+        #region GetStateItemExclusive
+            private static readonly string GetStateItemExclusiveSql = $@"
+            BEGIN TRAN
+                DECLARE @textptr AS varbinary(16)
+                DECLARE @length AS int
+                DECLARE @now AS datetime
+                DECLARE @nowLocal AS datetime
+            
+                SET @now = GETUTCDATE()
+                SET @nowLocal = GETDATE()
+            
+                UPDATE {SqlSessionStateRepositoryUtil.TableName} WITH (ROWLOCK, XLOCK)
+                SET Expires = DATEADD(n, Timeout, @now), 
+                    LockDate = CASE Locked
+                        WHEN 0 THEN @now
+                        ELSE LockDate
+                        END,
+                    LockDateLocal = CASE Locked
+                        WHEN 0 THEN @nowLocal
+                        ELSE LockDateLocal
+                        END,
+                    @{SqlParameterName.LockAge} = CASE Locked
+                        WHEN 0 THEN 0
+                        ELSE DATEDIFF(second, LockDate, @now)
+                        END,
+                    @{SqlParameterName.LockCookie} = LockCookie = CASE Locked
+                        WHEN 0 THEN LockCookie + 1
+                        ELSE LockCookie
+                        END,
+                    @textptr = CASE Locked
+                        WHEN 0 THEN TEXTPTR(SessionItemLong)
+                        ELSE NULL
+                        END,
+                    @length = CASE Locked
+                        WHEN 0 THEN DATALENGTH(SessionItemLong)
+                        ELSE NULL
+                        END,
+                    @{SqlParameterName.Locked} = Locked,
+                    Locked = 1,
+
+                    /* If the Uninitialized flag (0x1) if it is set,
+                       remove it and return InitializeItem (0x1) in actionFlags */
+                    Flags = CASE
+                        WHEN (Flags & 1) <> 0 THEN (Flags & ~1)
+                        ELSE Flags
+                        END,
+                    @{SqlParameterName.ActionFlags} = CASE
+                        WHEN (Flags & 1) <> 0 THEN 1
+                        ELSE 0
+                        END
+                WHERE SessionId = @{SqlParameterName.SessionId}
+                IF @length IS NOT NULL BEGIN
+                    READTEXT {SqlSessionStateRepositoryUtil.TableName}.SessionItemLong @textptr 0 @length
+                END
+            COMMIT TRAN
+            ";
+        #endregion
+
+        #region GetStateItem
+        private static readonly string GetStateItemSql = $@"
+            BEGIN TRAN
+                DECLARE @textptr AS varbinary(16)
+                DECLARE @length AS int
+                DECLARE @now AS datetime
+                SET @now = GETUTCDATE()
+
+                UPDATE {SqlSessionStateRepositoryUtil.TableName} WITH (XLOCK, ROWLOCK)
+                SET Expires = DATEADD(n, Timeout, @now), 
+                    @{SqlParameterName.Locked} = Locked,
+                    @{SqlParameterName.LockAge} = DATEDIFF(second, LockDate, @now),
+                    @{SqlParameterName.LockCookie} = LockCookie,
+                    @textptr = CASE @locked
+                        WHEN 0 THEN TEXTPTR(SessionItemLong)
+                        ELSE NULL
+                        END,
+                    @length = CASE @locked
+                        WHEN 0 THEN DATALENGTH(SessionItemLong)
+                        ELSE NULL
+                        END,
+
+                    /* If the Uninitialized flag (0x1) if it is set,
+                       remove it and return InitializeItem (0x1) in actionFlags */
+                    Flags = CASE
+                        WHEN (Flags & 1) <> 0 THEN (Flags & ~1)
+                        ELSE Flags
+                        END,
+                    @{SqlParameterName.ActionFlags} = CASE
+                        WHEN (Flags & 1) <> 0 THEN 1
+                        ELSE 0
+                        END
+                WHERE SessionId = @{SqlParameterName.SessionId}
+                IF @length IS NOT NULL BEGIN
+                    READTEXT {SqlSessionStateRepositoryUtil.TableName}.SessionItemLong @textptr 0 @length
+                END
+            COMMIT TRAN
+              ";
         #endregion
 
         #region ReleaseItemExclusive
@@ -235,10 +191,10 @@ namespace Microsoft.AspNet.SessionState
             SET Expires = DATEADD(n, Timeout, GETUTCDATE())
             WHERE SessionId = @{SqlParameterName.SessionId}";
         #endregion
-        
+
         #region UpdateStateItemLong
         private static readonly string UpdateStateItemLongSql = $@"
-            UPDATE {SqlSessionStateRepositoryUtil.TableName}
+            UPDATE {SqlSessionStateRepositoryUtil.TableName} WITH (ROWLOCK)
             SET Expires = DATEADD(n, @{SqlParameterName.Timeout}, GETUTCDATE()), 
                 SessionItemLong = @{SqlParameterName.SessionItemLong},
                 Timeout = @{SqlParameterName.Timeout},
@@ -273,18 +229,62 @@ namespace Microsoft.AspNet.SessionState
                  @nowLocal,
                  1)";
         #endregion
+
+        #region DeleteExpiredSessions
+        private static readonly string DeleteExpiredSessionsSql = $@"
+            SET NOCOUNT ON
+            SET DEADLOCK_PRIORITY LOW
+
+            DECLARE @now datetime
+            SET @now = GETUTCDATE() 
+
+            CREATE TABLE #tblExpiredSessions 
+            ( 
+                SessionId nvarchar({SqlSessionStateRepositoryUtil.IdLength}) NOT NULL PRIMARY KEY
+            )
+
+            INSERT #tblExpiredSessions (SessionId)
+                SELECT SessionId
+                FROM {SqlSessionStateRepositoryUtil.TableName} WITH (READUNCOMMITTED)
+                WHERE Expires < @now
+
+            IF @@ROWCOUNT <> 0 
+            BEGIN 
+                DECLARE ExpiredSessionCursor CURSOR LOCAL FORWARD_ONLY READ_ONLY
+                FOR SELECT SessionId FROM #tblExpiredSessions
+
+                DECLARE @SessionId nvarchar({SqlSessionStateRepositoryUtil.IdLength})
+
+                OPEN ExpiredSessionCursor
+
+                FETCH NEXT FROM ExpiredSessionCursor INTO @SessionId
+
+                WHILE @@FETCH_STATUS = 0 
+                    BEGIN
+                        DELETE FROM {SqlSessionStateRepositoryUtil.TableName} WHERE SessionId = @SessionId AND Expires < @now
+                        FETCH NEXT FROM ExpiredSessionCursor INTO @SessionId
+                    END
+
+                CLOSE ExpiredSessionCursor
+
+                DEALLOCATE ExpiredSessionCursor
+            END 
+
+            DROP TABLE #tblExpiredSessions";
+            #endregion
         #endregion
 
-        public SqlInMemoryTableSessionStateRepository(string connectionString, int commandTimeout, 
-            int? retryInterval, int? retryNum)
+        public SqlSessionStateRepository(string connectionString, int commandTimeout,
+            int? retryInterval = DEFAULT_RETRY_INTERVAL, int? retryNum = DEFAULT_RETRY_NUM)
         {
-            this.RetryIntervalMilSec = retryInterval ?? DEFAULT_RETRY_INERVAL;
+            this.RetryIntervalMilSec = retryInterval ?? DEFAULT_RETRY_INTERVAL;
             this.ConnectString = connectionString;
             this.MaxRetryNum = retryNum ?? DEFAULT_RETRY_NUM;
             this.CommandTimeout = commandTimeout;
             this._commandHelper = new SqlCommandHelper(commandTimeout);
         }
 
+        #region properties/methods for unit tests
         internal int RetryIntervalMilSec { get; }
 
         internal string ConnectString { get; }
@@ -293,6 +293,25 @@ namespace Microsoft.AspNet.SessionState
 
         internal int CommandTimeout { get; }
 
+        #endregion
+
+        private bool CanRetry(RetryCheckParameter parameter)
+        {
+            if (RetryIntervalMilSec <= 0 ||
+                !SqlSessionStateRepositoryUtil.IsFatalSqlException(parameter.Exception) ||
+                parameter.RetryCount >= MaxRetryNum)
+            {
+                return false;
+            }
+
+            // sleep the specified time and allow retry
+            Thread.Sleep(RetryIntervalMilSec);
+            parameter.RetryCount++;
+
+            return true;
+        }
+
+        #region ISqlSessionStateRepository implementation
         public void CreateSessionStateTable()
         {
             using (var connection = new SqlConnection(ConnectString))
@@ -305,19 +324,7 @@ namespace Microsoft.AspNet.SessionState
                 }
                 catch (Exception ex)
                 {
-                    // Indicate that the DB doesn't support InMemoryTable
-                    var sqlException = ex as SqlException;
-                    if (sqlException != null && 
-                        // 40536 error code from SQL Azure
-                        // 41337 error code from SQL server
-                        (sqlException.Number == 40536 || sqlException.Number == 41337))
-                    {
-                        throw sqlException;
-                    }
-                    else
-                    {
-                        throw new HttpException(SR.Cant_connect_sql_session_database, ex);
-                    }
+                    throw new HttpException(SR.Cant_connect_sql_session_database, ex);
                 }
             }
         }
@@ -381,14 +388,16 @@ namespace Microsoft.AspNet.SessionState
                 }
                 actions = (SessionStateActions)cmd.GetOutPutParameterValue(SqlParameterName.ActionFlags).Value;
 
-                Debug.Assert(buf != null);
+                if (buf == null)
+                {
+                    buf = (byte[])cmd.GetOutPutParameterValue(SqlParameterName.SessionItemLong).Value;
+                }
 
                 return new SessionItem(buf, true, lockAge, lockId, actions);
             }
         }
 
-        public async Task CreateOrUpdateSessionStateItemAsync(bool newItem, string id, 
-            byte[] buf, int length, int timeout, int lockCookie, int orginalStreamLen)
+        public async Task CreateOrUpdateSessionStateItemAsync(bool newItem, string id, byte[] buf, int length, int timeout, int lockCookie, int orginalStreamLen)
         {
             SqlCommand cmd;
 
@@ -442,35 +451,7 @@ namespace Microsoft.AspNet.SessionState
                 await SqlSessionStateRepositoryUtil.SqlExecuteNonQueryWithRetryAsync(connection, cmd, CanRetry, true);
             }
         }
-
-        private bool CanRetry(RetryCheckParameter parameter)
-        {
-            if (parameter.RetryCount >= MaxRetryNum ||
-                !ShouldUseInMemoryTableRetry(parameter.Exception))
-            {
-                return false;
-            }
-
-            // this actually may sleep up to 15ms
-            // but it's better than spinning CPU
-            Thread.Sleep(RetryIntervalMilSec);
-            parameter.RetryCount++;
-
-            return true;
-        }
-
-        private bool ShouldUseInMemoryTableRetry(SqlException ex)
-        {
-            // Error code is defined on
-            // https://docs.microsoft.com/en-us/sql/relational-databases/in-memory-oltp/transactions-with-memory-optimized-tables#conflict-detection-and-retry-logic
-            if (ex != null && (ex.Number == 41302 || ex.Number == 41305 || ex.Number == 41325 || ex.Number == 41301 || ex.Number == 41839))
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-    }
+        #endregion
+        
+    }    
 }

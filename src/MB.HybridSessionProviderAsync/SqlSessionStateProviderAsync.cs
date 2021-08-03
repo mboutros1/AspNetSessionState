@@ -1,23 +1,24 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license. See the License.txt file in the project root for full license information.
 
-namespace Microsoft.AspNet.SessionState
-{
-    using System;
-    using System.Threading.Tasks;
-    using System.Threading;
-    using System.Web;
-    using System.Web.SessionState;
-    using System.Globalization;
-    using System.Configuration;
-    using System.IO;
-    using System.IO.Compression;
-    using System.Diagnostics;
-    using System.Web.Configuration;
-    using System.Configuration.Provider;
-    using System.Collections.Specialized;
-    using Resources;
+using System;
+using System.Collections.Specialized;
+using System.Configuration;
+using System.Configuration.Provider;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.IO.Compression;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Web;
+using System.Web.Configuration;
+using System.Web.SessionState;
+using Microsoft.AspNet.SessionState;
 
+using MB.HybridSessionProviderAsync.Resources;
+namespace MB.HybridSessionProviderAsync
+{
     /// <summary>
     /// Async version of SqlSessionState provider
     /// </summary>

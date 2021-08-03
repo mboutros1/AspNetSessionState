@@ -14,7 +14,7 @@ using System.Collections.Concurrent;
 
 // ReSharper disable UnusedMember.Global
 
-namespace Microsoft.AspNet.SessionState
+namespace MB.HybridSessionProviderAsync
 {
     /// <summary>
     /// Session Data 

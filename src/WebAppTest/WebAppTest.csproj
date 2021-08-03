@@ -178,13 +178,9 @@
     <Content Include="Scripts\jquery-3.4.1.min.map" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SessionStateModule\Microsoft.AspNet.SessionState.SessionStateModule.csproj">
-      <Project>{7238f90d-3bce-4f40-a5ba-ea36ad484bd6}</Project>
-      <Name>Microsoft.AspNet.SessionState.SessionStateModule</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\SqlSessionStateProviderAsync\Microsoft.AspNet.SessionState.SqlSessionStateProviderAsync.csproj">
+    <ProjectReference Include="..\MB.HybridSessionProviderAsync\MB.HybridSessionProviderAsync.csproj">
       <Project>{493b0482-572a-4465-bd52-4094351c2647}</Project>
-      <Name>Microsoft.AspNet.SessionState.SqlSessionStateProviderAsync</Name>
+      <Name>MB.HybridSessionProviderAsync</Name>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup>

@@ -1,16 +1,16 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license. See the License.txt file in the project root for full license information.
 
-namespace Microsoft.AspNet.SessionState
-{
-    using Resources;
-    using System;
-    using System.Data;
-    using System.Data.SqlClient;
-    using System.Security.Principal;
-    using System.Threading.Tasks;
-    using System.Web;
+using System;
+using System.Data;
+using System.Data.SqlClient;
+using System.Security.Principal;
+using System.Threading.Tasks;
+using System.Web;
+using MB.HybridSessionProviderAsync.Resources;
 
+namespace MB.HybridSessionProviderAsync
+{
     enum SqlParameterName
     {
         SessionId,

@@ -1,12 +1,12 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license. See the License.txt file in the project root for full license information.
 
-namespace Microsoft.AspNet.SessionState
-{
-    using System;
-    using System.Threading.Tasks;
-    using System.Web.SessionState;
+using System;
+using System.Threading.Tasks;
+using System.Web.SessionState;
 
+namespace MB.HybridSessionProviderAsync
+{
     interface ISqlSessionStateRepository
     {
         void CreateSessionStateTable();
