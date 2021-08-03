@@ -79,7 +79,7 @@
     <Compile Include="SqlInMemoryTableSessionStateRepository.cs" />
     <Compile Include="SqlMemoryStateRepository.cs" />
     <Compile Include="SqlParameterCollectionExtension.cs" />
-    <Compile Include="SqlSessionStateProviderAsync.cs" />
+    <Compile Include="HybridSessionProviderAsync.cs" />
     <Compile Include="SqlSessionStateRepository.cs" />
     <Compile Include="SqlSessionStateRepositoryUtil.cs" />
   </ItemGroup>

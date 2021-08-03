@@ -22,7 +22,7 @@ namespace MB.HybridSessionProviderAsync
     /// <summary>
     /// Async version of SqlSessionState provider
     /// </summary>
-    public class SqlSessionStateProviderAsync : SessionStateStoreProviderAsyncBase
+    public class HybridSessionProviderAsync : SessionStateStoreProviderAsyncBase
     {
         private const string INMEMORY_TABLE_CONFIGURATION_NAME = "UseInMemoryTable";
         private const string MAX_RETRY_NUMBER_CONFIGURATION_NAME = "MaxRetryNumber";
