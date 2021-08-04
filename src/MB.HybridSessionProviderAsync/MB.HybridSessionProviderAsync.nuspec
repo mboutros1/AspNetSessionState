@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
-    <id>$NuGetPackageId$</id>
-    <version>$NuGetPackageVersion$</version>
+    <id>$id$</id>
+    <version>$version$</version>
     <authors>Michael Boutros</authors>
     <owners>Michael Boutros</owners>
     <copyright>&#169; Michael Boutros. All rights reserved.</copyright>
