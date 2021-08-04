@@ -10,7 +10,6 @@
   <PropertyGroup Label="NuGet package dependencies">
     <SessionStateModuleNuGetPackageVersion>1.1.0</SessionStateModuleNuGetPackageVersion>
   </PropertyGroup>
-
-  <Import Project="MicrosoftAspNetSessionState.settings.targets" />
+ 
 
 </Project>
