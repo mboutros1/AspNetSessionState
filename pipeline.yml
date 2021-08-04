@@ -74,7 +74,7 @@ steps:
     includeReferencedProjects: true
     versionByBuild: true
     configurationToPack: '$(BuildConfiguration)'
-    nuGetPath: '$(NugetLocation)'
+    nuGetPath: '$(Build.SourcesDirectory)\.nuget\nuget.exe'
 
 - task: CopyFiles@2
   displayName: 'Copy Files to: $(Build.SourcesDirectory)'
