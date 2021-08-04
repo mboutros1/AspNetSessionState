@@ -1,0 +1,100 @@
+trigger:
+- master
+
+pool:
+  name: 'ABS Core Web'
+
+variables: 
+ - group: Build.Common
+ - name: solution
+   value: '**/*.sln'
+ - name: buildPlatform
+   value: 'Any CPU'
+ - name: buildConfiguration
+   value: 'Release'
+
+
+steps:
+- task: NuGetToolInstaller@1
+
+- task: NuGetCommand@2
+  inputs:
+    restoreSolution: '$(solution)'
+- task: ivanboyko.RegexReplace@1
+  inputs:
+    FileMask: '**\AssemblyInfo.cs'
+    Regex: '(ProviderVersion)'
+    Replacement: '"1.0.0.$(Build.BuildID)"'
+
+- task: Update AssemblyInfo@1
+  inputs:
+    rootFolder: '$(Build.SourcesDirectory)'
+    filePattern: 'AssemblyInfo.cs'
+    assemblyVersion: '1.0.0.$(Build.BuildID)'
+    assemblyFileVersion: '1.0.0.$(Build.BuildID)'
+
+- task: VSBuild@1
+  inputs:
+    solution: '$(solution)'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+
+- task: DeleteFiles@1
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)'
+    Contents: |
+      **\*.nupkg
+      *.nupkg
+- task: PowerShell@2 
+  displayName: 'Get Version'
+  inputs:
+    filePath: 'E:\BuildTools\Scripts\getVersion.ps1'
+    arguments: '-path  "$(Build.SourcesDirectory)\.binaries\bin\$(Build.Configuration)\MB.HybridSessionProviderAsync.dll"'
+    failOnStderr: true
+    
+
+- task: PowerShell@2
+  displayName: 'Update version '
+  inputs:
+    targetType: 'inline'
+    script: 'Write-Host ("##vso[build.updatebuildnumber]$($env:ABSCrDllVer).$($env:Build_BuildId)")'
+
+- task: PublishSymbols@1
+  displayName: 'Publish symbols path: $(DebuggingSymbolsLocation)'
+  inputs:
+    SymbolsPath: '$(DebuggingSymbolsLocation)'
+    SearchPattern: '**/Events.**/bin/**/*.pdb;'
+
+
+- task: NuGetPackager@0
+  displayName: 'NuGet Packager '
+  inputs:
+    searchPattern: 'src\MB.HybridSessionProviderAsync\MB.HybridSessionProviderAsync.csproj'
+    includeReferencedProjects: true
+    versionByBuild: true
+    configurationToPack: '$(Build.Configuration)'
+    nuGetPath: '$(NugetLocation)'
+
+- task: CopyFiles@2
+  displayName: 'Copy Files to: $(Build.SourcesDirectory)'
+  inputs:
+    SourceFolder: '$(Build.ArtifactStagingDirectory)'
+    Contents: '**\*.symbols.nupkg'
+    TargetFolder: '$(Build.SourcesDirectory)'
+
+- task: DeleteFiles@1
+  displayName: 'Remove Non Src Packages'
+  inputs:
+    SourceFolder: '$(Build.ArtifactStagingDirectory)'
+    Contents: '**\*.nupkg'
+
+- task: NuGetPublisher@0
+  displayName: 'NuGet Publisher '
+  inputs:
+    searchPattern: '**/*.nupkg;-:**/packages/**/*.nupkg'
+    nuGetFeedType: internal
+    feedName: '$(PackageFeedUrl)'
+    nuGetVersion: custom
+    nuGetPath: '$(NugetLocation)'
+ 
