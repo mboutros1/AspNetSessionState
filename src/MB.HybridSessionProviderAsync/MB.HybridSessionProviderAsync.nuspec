@@ -7,7 +7,8 @@
     <owners>Michael Boutros</owners>
     <copyright>&#169; Michael Boutros. All rights reserved.</copyright>
     <dependencies>
-      <dependency id="Microsoft.AspNet.SessionState.SessionStateModule" version="$SessionStateModuleNuGetPackageVersion$" />
+      <dependency id="Microsoft.AspNet.SessionState.SessionStateModule" 
+                  version="1.1.0" />
     </dependencies>    
     <title>ASP.NET Async Hybrid Provider</title>
     <description>Use in memory async session.</description>

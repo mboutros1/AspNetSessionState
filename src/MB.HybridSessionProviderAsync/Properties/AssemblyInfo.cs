@@ -21,5 +21,5 @@ using static MB.HybridSessionProviderAsync.Properties.Version;
 // COM, set the ComVisible attribute to true on that type.
 [assembly: ComVisible(false)]
 
-//[assembly: AssemblyVersion(@"1.0.0.45879")]
-//[assembly: AssemblyFileVersion(@"1.0.0.45879")]
+//[assembly: AssemblyVersion(ProviderVersion)]
+//[assembly: AssemblyFileVersion(ProviderVersion)]
