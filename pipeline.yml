@@ -50,7 +50,7 @@ steps:
   displayName: 'Get Version'
   inputs:
     filePath: 'E:\BuildTools\Scripts\getVersion.ps1'
-    arguments: '-path  "$(Build.SourcesDirectory)\.binaries\bin\$(Build.Configuration)\MB.HybridSessionProviderAsync.dll"'
+    arguments: '-path  "$(Build.SourcesDirectory)\.binaries\bin\$(buildConfiguration)\MB.HybridSessionProviderAsync.dll"'
     failOnStderr: true
     
 
