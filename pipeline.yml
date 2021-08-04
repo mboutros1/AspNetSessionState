@@ -73,7 +73,7 @@ steps:
     searchPattern: 'src\MB.HybridSessionProviderAsync\MB.HybridSessionProviderAsync.csproj'
     includeReferencedProjects: true
     versionByBuild: true
-    configurationToPack: '$(Build.Configuration)'
+    configurationToPack: '$(BuildConfiguration)'
     nuGetPath: '$(NugetLocation)'
 
 - task: CopyFiles@2
