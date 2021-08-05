@@ -8,3 +8,4 @@ obj/
 *.user
 *.zip
 /src/MB.HybridSessionProviderAsync/MB.HybridSessionProviderAsync.xml
+*.nupkg
