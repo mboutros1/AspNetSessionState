@@ -71,8 +71,8 @@ steps:
   displayName: 'NuGet Packager '
   inputs:
     searchPattern: 'src\MB.HybridSessionProviderAsync\MB.HybridSessionProviderAsync.csproj'
-    includeReferencedProjects: true
-    versionByBuild: true
+    includeReferencedProjects: false
+    versionByBuild: 'true'
     configurationToPack: '$(BuildConfiguration)'
     nuGetPath: '$(Build.SourcesDirectory)\.nuget\nuget.exe'
 
