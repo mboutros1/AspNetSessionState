@@ -61,21 +61,21 @@ steps:
     targetType: 'inline'
     script: 'Write-Host ("##vso[build.updatebuildnumber]$($env:ABSCrDllVer).$($env:Build_BuildId)")'
 
-- task: PublishSymbols@1
-  displayName: 'Publish symbols path: $(DebuggingSymbolsLocation)'
-  inputs:
-    SymbolsPath: '$(DebuggingSymbolsLocation)'
-    SearchPattern: '**/Events.**/bin/**/*.pdb;'
+#- task: PublishSymbols@1
+#  displayName: 'Publish symbols path: $(DebuggingSymbolsLocation)'
+#  inputs:
+#    SymbolsPath: '$(DebuggingSymbolsLocation)'
+#    SearchPattern: '**/Events.**/bin/**/*.pdb;'
 
 
-- task: NuGetPackager@0
-  displayName: 'NuGet Packager '
-  inputs:
-    searchPattern: 'src\MB.HybridSessionProviderAsync\MB.HybridSessionProviderAsync.csproj'
-    includeReferencedProjects: false
-    versionByBuild: 'true'
-    configurationToPack: '$(BuildConfiguration)'
-    nuGetPath: '$(Build.SourcesDirectory)\.nuget\nuget.exe'
+#- task: NuGetPackager@0
+#  displayName: 'NuGet Packager '
+#  inputs:
+#    searchPattern: 'src\MB.HybridSessionProviderAsync\MB.HybridSessionProviderAsync.csproj'
+#    includeReferencedProjects: false
+#    versionByBuild: 'true'
+#    configurationToPack: '$(BuildConfiguration)'
+#    nuGetPath: '$(Build.SourcesDirectory)\.nuget\nuget.exe'
 
 - task: CopyFiles@2
   displayName: 'Copy Files to: $(Build.SourcesDirectory)'
@@ -90,12 +90,12 @@ steps:
     SourceFolder: '$(Build.ArtifactStagingDirectory)'
     Contents: '**\*.nupkg'
 
-- task: NuGetPublisher@0
-  displayName: 'NuGet Publisher '
-  inputs:
-    searchPattern: '**/*.nupkg;-:**/packages/**/*.nupkg'
-    nuGetFeedType: internal
-    feedName: '$(PackageFeedUrl)'
-    nuGetVersion: custom
-    nuGetPath: '$(NugetLocation)'
+#- task: NuGetPublisher@0
+#  displayName: 'NuGet Publisher '
+#  inputs:
+#    searchPattern: '**/*.nupkg;-:**/packages/**/*.nupkg'
+#    nuGetFeedType: internal
+#    feedName: '$(PackageFeedUrl)'
+#    nuGetVersion: custom
+#    nuGetPath: '$(NugetLocation)'
  

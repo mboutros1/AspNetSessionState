@@ -1,4 +1,7 @@
 set v=0.0.0.45913
+
+dotnet build src\MB.HybridSessionProviderAsync\MB.HybridSessionProviderAsync.csproj  -c Release
+
 set packageFileName="MB.HybridSessionProviderAsync.%v%.nupkg"
 echo %packageFileName%
 set feed="http://tfs.abssuite.analytics.moodys.net:8080/tfs/DefaultCollection/_packaging/Nugetter/nuget/v3/index.json"
