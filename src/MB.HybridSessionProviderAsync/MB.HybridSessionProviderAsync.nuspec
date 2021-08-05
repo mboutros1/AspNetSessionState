@@ -7,13 +7,14 @@
     <owners>Michael Boutros</owners>
     <copyright>&#169; Michael Boutros. All rights reserved.</copyright>
     <dependencies>
-      <dependency id="Microsoft.AspNet.SessionState.SessionStateModule" 
-                  version="1.1.0" />
-    </dependencies>    
+      <group targetFramework=".NETFramework4.6.2">
+        <dependency id="Microsoft.AspNet.SessionState.SessionStateModule" version="1.1.0" />
+      </group>
+    </dependencies>
     <title>ASP.NET Async Hybrid Provider</title>
     <description>Use in memory async session.</description>
     <summary>Async version Hybrid provider</summary>
-    <language>en-US</language>  
+    <language>en-US</language>
     <tags>ASP.NET Async Hybrid SessionState Provider</tags>
   </metadata>
 </package>

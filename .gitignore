@@ -6,3 +6,5 @@ obj/
 /packages/
 .binaries/
 *.user
+*.zip
+/src/MB.HybridSessionProviderAsync/MB.HybridSessionProviderAsync.xml
