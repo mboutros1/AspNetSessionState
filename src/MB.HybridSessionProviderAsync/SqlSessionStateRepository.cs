@@ -277,11 +277,11 @@ namespace MB.HybridSessionProviderAsync
         public SqlSessionStateRepository(string connectionString, int commandTimeout,
             int? retryInterval = DEFAULT_RETRY_INTERVAL, int? retryNum = DEFAULT_RETRY_NUM)
         {
-            this.RetryIntervalMilSec = retryInterval ?? DEFAULT_RETRY_INTERVAL;
-            this.ConnectString = connectionString;
-            this.MaxRetryNum = retryNum ?? DEFAULT_RETRY_NUM;
-            this.CommandTimeout = commandTimeout;
-            this._commandHelper = new SqlCommandHelper(commandTimeout);
+            RetryIntervalMilSec = retryInterval ?? DEFAULT_RETRY_INTERVAL;
+            ConnectString = connectionString;
+            MaxRetryNum = retryNum ?? DEFAULT_RETRY_NUM;
+            CommandTimeout = commandTimeout;
+            _commandHelper = new SqlCommandHelper(commandTimeout);
         }
 
         #region properties/methods for unit tests

@@ -47,7 +47,7 @@ namespace MB.HybridSessionProviderAsync
         {
             if (config == null)
             {
-                throw new ArgumentNullException("config");
+                throw new ArgumentNullException(nameof(config));
             }
             if (String.IsNullOrEmpty(name))
             {
@@ -189,7 +189,7 @@ namespace MB.HybridSessionProviderAsync
         {
             if (id == null)
             {
-                throw new ArgumentNullException("id");
+                throw new ArgumentNullException(nameof(id));
             }
             if (id.Length > SessionIDManager.SessionIDMaxLength)
             {
@@ -247,7 +247,7 @@ namespace MB.HybridSessionProviderAsync
         {
             if (id == null)
             {
-                throw new ArgumentNullException("id");
+                throw new ArgumentNullException(nameof(id));
             }
             if (id.Length > SessionIDManager.SessionIDMaxLength)
             {
@@ -269,7 +269,7 @@ namespace MB.HybridSessionProviderAsync
         {
             if (id == null)
             {
-                throw new ArgumentNullException("id");
+                throw new ArgumentNullException(nameof(id));
             }
             if (id.Length > SessionIDManager.SessionIDMaxLength)
             {
@@ -289,7 +289,7 @@ namespace MB.HybridSessionProviderAsync
         {
             if (id == null)
             {
-                throw new ArgumentNullException("id");
+                throw new ArgumentNullException(nameof(id));
             }
             if (id.Length > SessionIDManager.SessionIDMaxLength)
             {
@@ -316,11 +316,11 @@ namespace MB.HybridSessionProviderAsync
 
             if (item == null)
             {
-                throw new ArgumentNullException("item");
+                throw new ArgumentNullException(nameof(item));
             }
             if (id == null)
             {
-                throw new ArgumentNullException("id");
+                throw new ArgumentNullException(nameof(id));
             }
             if (id.Length > SessionIDManager.SessionIDMaxLength)
             {
@@ -347,7 +347,7 @@ namespace MB.HybridSessionProviderAsync
         }
 
         /// <inheritdoc />
-        public override bool SetItemExpireCallback(System.Web.SessionState.SessionStateItemExpireCallback expireCallback)
+        public override bool SetItemExpireCallback(SessionStateItemExpireCallback expireCallback)
         {
             return false;
         }
@@ -360,7 +360,7 @@ namespace MB.HybridSessionProviderAsync
             }
             id = AppendAppIdHash(id);
 
-            SessionStateStoreData data = null;
+            SessionStateStoreData data;
             var sessionItem = await s_sqlSessionStateRepository.GetSessionStateItemAsync(id, exclusive);
 
             if (sessionItem == null)
@@ -415,7 +415,7 @@ namespace MB.HybridSessionProviderAsync
                     }
                     // if the session state tables have ANSI_PADDING disabled, last )s are trimmed.
                     // This shouldn't happen, but to be sure, we are padding with an extra byte
-                    s.WriteByte((byte)0xff);
+                    s.WriteByte(0xff);
                 }
                 buf = s.GetBuffer();
                 length = (int)s.Length;
@@ -453,7 +453,7 @@ namespace MB.HybridSessionProviderAsync
             }
 
             // Prevent truncation of the stream
-            writer.Write(unchecked((byte)0xff));
+            writer.Write((byte)0xff);
         }
 
         internal static SessionStateStoreData DeserializeStoreData(HttpContextBase context, Stream stream, bool compressionEnabled)

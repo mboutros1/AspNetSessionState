@@ -12,7 +12,7 @@ namespace MB.HybridSessionProviderAsync
 
         public SqlCommandHelper(int commandTimeout)
         {
-            this._commandTimeout = commandTimeout;
+            _commandTimeout = commandTimeout;
         }
 
         #region property for unit tests

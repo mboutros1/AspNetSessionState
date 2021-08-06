@@ -278,11 +278,11 @@ namespace MB.HybridSessionProviderAsync
         public SqlInMemoryTableSessionStateRepository(string connectionString, int commandTimeout, 
             int? retryInterval, int? retryNum)
         {
-            this.RetryIntervalMilSec = retryInterval ?? DEFAULT_RETRY_INERVAL;
-            this.ConnectString = connectionString;
-            this.MaxRetryNum = retryNum ?? DEFAULT_RETRY_NUM;
-            this.CommandTimeout = commandTimeout;
-            this._commandHelper = new SqlCommandHelper(commandTimeout);
+            RetryIntervalMilSec = retryInterval ?? DEFAULT_RETRY_INERVAL;
+            ConnectString = connectionString;
+            MaxRetryNum = retryNum ?? DEFAULT_RETRY_NUM;
+            CommandTimeout = commandTimeout;
+            _commandHelper = new SqlCommandHelper(commandTimeout);
         }
 
         internal int RetryIntervalMilSec { get; }
