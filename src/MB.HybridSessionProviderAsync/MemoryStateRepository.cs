@@ -5,7 +5,7 @@ using System.Web.SessionState;
 
 namespace MB.HybridSessionProviderAsync
 {
-    internal class SqlMemoryStateRepository : ISqlSessionStateRepository
+    internal class MemoryStateRepository : ISqlSessionStateRepository
     {
         public void CreateSessionStateTable()
         {
@@ -87,18 +87,16 @@ namespace MB.HybridSessionProviderAsync
             else
             {
                 SData.Data.TryGetValue(id, out var value);
-                CheckIfNull(value);
-                value.Update(buf, timeout);
+                if (value == null)
+                    SData.Add(id, length, buf, timeout);
+                else
+                    value.Update(buf, timeout);
             }
 
             return Task.CompletedTask;
         }
 
-
-        private static void CheckIfNull(SData value)
-        {
-            if (value == null) throw new Exception("Cannot find session item to update");
-        }
+         
 
         public Task ResetSessionItemTimeoutAsync(string id)
         {

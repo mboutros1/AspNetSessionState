@@ -75,7 +75,7 @@ namespace MB.HybridSessionProviderAsync
                         s_compressionEnabled = ssc.CompressionEnabled;
                         if (connectionString == null)
                         {
-                            s_sqlSessionStateRepository = new SqlMemoryStateRepository();
+                            s_sqlSessionStateRepository = new MemoryStateRepository();
                         }
                         else
                         {
