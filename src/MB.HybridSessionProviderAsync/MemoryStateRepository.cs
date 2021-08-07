@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Web.SessionState;
 
+
 namespace MB.HybridSessionProviderAsync
 {
     internal class MemoryStateRepository : ISqlSessionStateRepository
@@ -22,12 +23,13 @@ namespace MB.HybridSessionProviderAsync
 
         }
 
-        public Task<SessionItem> GetSessionStateItemAsync(string id, bool exclusive)
+        public Task<(SessionItem,SessionStateStoreData)> GetSessionStateItemAsync(string id, bool exclusive)
         {
+            SessionStateStoreData storeData;
             SData.Data.TryGetValue(id, out var orgValue);
             if (orgValue == null)
-            {
-                return Task.FromResult<SessionItem>(null);
+            { 
+                return Task.FromResult<(SessionItem, SessionStateStoreData)>((null, null));
             }
             byte[] buf = orgValue.Access(true);
 
@@ -75,9 +77,12 @@ namespace MB.HybridSessionProviderAsync
 
                 value.LockAge = lockAge;
             }
-            return Task.FromResult(new SessionItem(buf, true, value.LockAge, value.LockCookie, (SessionStateActions)actions));
 
+            storeData = value.StoreData;
+            return Task.FromResult((new SessionItem(buf, true, value.LockAge, value.LockCookie, (SessionStateActions)actions),storeData));
         }
+
+
 
         public Task CreateOrUpdateSessionStateItemAsync(bool newItem, string id, byte[] buf, int length, int timeout, int lockCookie,
             int orginalStreamLen)
@@ -96,7 +101,23 @@ namespace MB.HybridSessionProviderAsync
             return Task.CompletedTask;
         }
 
-         
+        public Task CreateOrUpdateSessionStateItemAsync(bool newItem, string id, SessionStateStoreData itemData, int timeout,
+            int lockCookie, int origStreamLen)
+        {
+            if (newItem)
+                SData.Add(id, itemData, timeout);
+            else
+            {
+                SData.Data.TryGetValue(id, out var value);
+                if (value == null)
+                    SData.Add(id, itemData, timeout);
+                else
+                    value.Update(itemData, timeout);
+            }
+
+            return Task.CompletedTask;
+        }
+
 
         public Task ResetSessionItemTimeoutAsync(string id)
         {
@@ -129,5 +150,12 @@ namespace MB.HybridSessionProviderAsync
             SData.Add(id, length, buf, timeout);
             return Task.CompletedTask;
         }
+
+        public Task CreateUninitializedSessionItemAsync(string id, SessionStateStoreData item, int timeout)
+        {
+            throw new NotImplementedException();
+        }
+
+       
     }
 }

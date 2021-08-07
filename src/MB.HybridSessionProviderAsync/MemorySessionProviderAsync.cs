@@ -7,8 +7,6 @@ using System.Configuration;
 using System.Configuration.Provider;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
-using System.IO.Compression;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
@@ -22,7 +20,7 @@ namespace MB.HybridSessionProviderAsync
     /// <summary>
     /// Async version of SqlSessionState provider
     /// </summary>
-    public class HybridSessionProviderAsync : SessionStateStoreProviderAsyncBase
+    public class MemorySessionProviderAsync : SessionStateStoreProviderAsyncBase
     {
         private const string INMEMORY_TABLE_CONFIGURATION_NAME = "UseInMemoryTable";
         private const string MAX_RETRY_NUMBER_CONFIGURATION_NAME = "MaxRetryNumber";
@@ -83,14 +81,14 @@ namespace MB.HybridSessionProviderAsync
                             {
                                 s_sqlSessionStateRepository = new SqlInMemoryTableSessionStateRepository(
                                     connectionString.ConnectionString,
-                                    (int) ssc.SqlCommandTimeout.TotalSeconds, GetRetryInterval(config),
+                                    (int)ssc.SqlCommandTimeout.TotalSeconds, GetRetryInterval(config),
                                     GetMaxRetryNum(config));
                             }
                             else
                             {
                                 s_sqlSessionStateRepository = new SqlSessionStateRepository(
                                     connectionString.ConnectionString,
-                                    (int) ssc.SqlCommandTimeout.TotalSeconds, GetRetryInterval(config),
+                                    (int)ssc.SqlCommandTimeout.TotalSeconds, GetRetryInterval(config),
                                     GetMaxRetryNum(config));
                             }
 
@@ -201,8 +199,7 @@ namespace MB.HybridSessionProviderAsync
                         GetSessionStaticObjects(context.ApplicationInstance.Context),
                         timeout);
 
-            SerializeStoreData(item, SqlSessionStateRepositoryUtil.DefaultItemLength, out var buf, out var length, s_compressionEnabled);
-            await s_sqlSessionStateRepository.CreateUninitializedSessionItemAsync(id, length, buf, timeout);
+            await s_sqlSessionStateRepository.CreateUninitializedSessionItemAsync(id, item, timeout);
         }
 
         /// <inheritdoc />
@@ -310,8 +307,6 @@ namespace MB.HybridSessionProviderAsync
             bool newItem,
             CancellationToken cancellationToken)
         {
-            byte[] buf;
-            int length;
             int lockCookie;
 
             if (item == null)
@@ -328,22 +323,10 @@ namespace MB.HybridSessionProviderAsync
             }
             id = AppendAppIdHash(id);
 
-            try
-            {
-                SerializeStoreData(item, SqlSessionStateRepositoryUtil.DefaultItemLength, out buf, out length, s_compressionEnabled);
-            }
-            catch
-            {
-                if (!newItem)
-                {
-                    await ReleaseItemExclusiveAsync(context, id, lockId, cancellationToken);
-                }
-                throw;
-            }
 
             lockCookie = (int?)lockId ?? 0;
 
-            await s_sqlSessionStateRepository.CreateOrUpdateSessionStateItemAsync(newItem, id, buf, length, item.Timeout, lockCookie, OrigStreamLen);
+            await s_sqlSessionStateRepository.CreateOrUpdateSessionStateItemAsync(newItem, id, item, item.Timeout, lockCookie, OrigStreamLen);
         }
 
         /// <inheritdoc />
@@ -360,23 +343,18 @@ namespace MB.HybridSessionProviderAsync
             }
             id = AppendAppIdHash(id);
 
-            SessionStateStoreData data;
+
             var s = await s_sqlSessionStateRepository.GetSessionStateItemAsync(id, exclusive);
-            var sessionItem = s.Item1;
+            SessionItem sessionItem = s.Item1;
+            SessionStateStoreData data = s.Item2;
             if (sessionItem == null)
             {
                 return null;
             }
-            if (sessionItem.Item == null)
+            if (sessionItem.Item == null && data == null)
             {
                 return new GetItemResult(null, sessionItem.Locked, sessionItem.LockAge, sessionItem.LockId, sessionItem.Actions);
-            }
-
-            using (var stream = new MemoryStream(sessionItem.Item))
-            {
-                data = DeserializeStoreData(context, stream, s_compressionEnabled);
-                OrigStreamLen = (int)stream.Position;
-            }
+            } 
 
             return new GetItemResult(data, sessionItem.Locked, sessionItem.LockAge, sessionItem.LockId, sessionItem.Actions);
         }
@@ -390,137 +368,7 @@ namespace MB.HybridSessionProviderAsync
             }
             return id;
         }
-
-        // Internal code copied from SessionStateUtility
-        internal static void SerializeStoreData(
-            SessionStateStoreData item,
-            int initialStreamSize,
-            out byte[] buf,
-            out int length,
-            bool compressionEnabled)
-        {
-            using (MemoryStream s = new MemoryStream(initialStreamSize))
-            {
-                Serialize(item, s);
-                if (compressionEnabled)
-                {
-                    byte[] serializedBuffer = s.GetBuffer();
-                    int serializedLength = (int)s.Length;
-                    // truncate the MemoryStream so we can write the compressed data in it
-                    s.SetLength(0);
-                    // compress the serialized bytes
-                    using (DeflateStream zipStream = new DeflateStream(s, CompressionMode.Compress, true))
-                    {
-                        zipStream.Write(serializedBuffer, 0, serializedLength);
-                    }
-                    // if the session state tables have ANSI_PADDING disabled, last )s are trimmed.
-                    // This shouldn't happen, but to be sure, we are padding with an extra byte
-                    s.WriteByte(0xff);
-                }
-                buf = s.GetBuffer();
-                length = (int)s.Length;
-            }
-        }
-
-        private static void Serialize(SessionStateStoreData item, Stream stream)
-        {
-            bool hasItems = true;
-            bool hasStaticObjects = true;
-
-            BinaryWriter writer = new BinaryWriter(stream);
-            writer.Write(item.Timeout);
-
-            if (item.Items == null || item.Items.Count == 0)
-            {
-                hasItems = false;
-            }
-            writer.Write(hasItems);
-
-            if (item.StaticObjects == null || item.StaticObjects.NeverAccessed)
-            {
-                hasStaticObjects = false;
-            }
-            writer.Write(hasStaticObjects);
-
-            if (hasItems)
-            {
-                ((SessionStateItemCollection)item.Items).Serialize(writer);
-            }
-
-            if (hasStaticObjects)
-            {
-                item.StaticObjects.Serialize(writer);
-            }
-
-            // Prevent truncation of the stream
-            writer.Write((byte)0xff);
-        }
-
-        internal static SessionStateStoreData DeserializeStoreData(HttpContextBase context, Stream stream, bool compressionEnabled)
-        {
-            if (compressionEnabled)
-            {
-                // apply the compression decorator on top of the stream
-                // the data should not be bigger than 4GB - compression doesn't work for more than that
-                using (DeflateStream zipStream = new DeflateStream(stream, CompressionMode.Decompress, true))
-                {
-                    return Deserialize(context, zipStream);
-                }
-            }
-            return Deserialize(context, stream);
-        }
-
-        private static SessionStateStoreData Deserialize(HttpContextBase context, Stream stream)
-        {
-            int timeout;
-            SessionStateItemCollection sessionItems;
-            bool hasItems;
-            bool hasStaticObjects;
-            HttpStaticObjectsCollection staticObjects;
-            byte eof;
-
-            Debug.Assert(context != null);
-
-            try
-            {
-                BinaryReader reader = new BinaryReader(stream);
-
-                timeout = reader.ReadInt32();
-                hasItems = reader.ReadBoolean();
-                hasStaticObjects = reader.ReadBoolean();
-
-                if (hasItems)
-                {
-                    sessionItems = SessionStateItemCollection.Deserialize(reader);
-                }
-                else
-                {
-                    sessionItems = new SessionStateItemCollection();
-                }
-
-                if (hasStaticObjects)
-                {
-                    staticObjects = HttpStaticObjectsCollection.Deserialize(reader);
-                }
-                else
-                {
-                    staticObjects = GetSessionStaticObjects(context.ApplicationInstance.Context);
-                }
-
-                eof = reader.ReadByte();
-                if (eof != 0xff)
-                {
-                    throw new HttpException(String.Format(CultureInfo.CurrentCulture, SR.Invalid_session_state));
-                }
-            }
-            catch (EndOfStreamException)
-            {
-                throw new HttpException(String.Format(CultureInfo.CurrentCulture, SR.Invalid_session_state));
-            }
-
-            return new SessionStateStoreData(sessionItems, staticObjects, timeout);
-        }
-
+  
         private bool CanPurge()
         {
             return (
@@ -534,7 +382,7 @@ namespace MB.HybridSessionProviderAsync
             // Only check for expired sessions every 30 seconds.
             if (CanPurge())
             {
-                Task.Run(() => PurgeExpiredSessions());
+                Task.Run(PurgeExpiredSessions);
             }
         }
 

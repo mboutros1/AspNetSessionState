@@ -13,7 +13,7 @@ namespace MB.HybridSessionProviderAsync
 
         void DeleteExpiredSessions();
 
-        Task<SessionItem> GetSessionStateItemAsync(string id, bool exclusive);
+        Task<(SessionItem, SessionStateStoreData)> GetSessionStateItemAsync(string id, bool exclusive);
 
         Task CreateOrUpdateSessionStateItemAsync(bool newItem, string id, byte[] buf, int length, int timeout, int lockCookie, int orginalStreamLen);
 
@@ -24,6 +24,8 @@ namespace MB.HybridSessionProviderAsync
         Task ReleaseSessionItemAsync(string id, object lockId);
 
         Task CreateUninitializedSessionItemAsync(string id, int length, byte[] buf, int timeout);
+        Task CreateUninitializedSessionItemAsync(string id, SessionStateStoreData item, int timeout);
+        Task CreateOrUpdateSessionStateItemAsync(bool newItem, string id, SessionStateStoreData item, int itemTimeout, int lockCookie, int origStreamLen);
     }
 
     class SessionItem

@@ -339,7 +339,7 @@ namespace MB.HybridSessionProviderAsync
             }
         }
 
-        public async Task<SessionItem> GetSessionStateItemAsync(string id, bool exclusive)
+        public async Task<(SessionItem, SessionStateStoreData)> GetSessionStateItemAsync(string id, bool exclusive)
         {
             var locked = false;
             var lockAge = TimeSpan.Zero;
@@ -371,7 +371,7 @@ namespace MB.HybridSessionProviderAsync
                 var outParameterLocked = cmd.GetOutPutParameterValue(SqlParameterName.Locked);
                 if (outParameterLocked == null || Convert.IsDBNull(outParameterLocked.Value))
                 {
-                    return null;
+                    return (null,null);
                 }
                 locked = (bool)outParameterLocked.Value;
                 lockId = (int)cmd.GetOutPutParameterValue(SqlParameterName.LockCookie).Value;
@@ -384,7 +384,7 @@ namespace MB.HybridSessionProviderAsync
                     {
                         lockAge = TimeSpan.Zero;
                     }
-                    return new SessionItem(null, true, lockAge, lockId, actions);
+                    return (new SessionItem(null, true, lockAge, lockId, actions),null);
                 }
                 actions = (SessionStateActions)cmd.GetOutPutParameterValue(SqlParameterName.ActionFlags).Value;
 
@@ -393,7 +393,7 @@ namespace MB.HybridSessionProviderAsync
                     buf = (byte[])cmd.GetOutPutParameterValue(SqlParameterName.SessionItemLong).Value;
                 }
 
-                return new SessionItem(buf, true, lockAge, lockId, actions);
+                return (new SessionItem(buf, true, lockAge, lockId, actions),null);
             }
         }
 
@@ -451,6 +451,18 @@ namespace MB.HybridSessionProviderAsync
                 await SqlSessionStateRepositoryUtil.SqlExecuteNonQueryWithRetryAsync(connection, cmd, CanRetry, true);
             }
         }
+
+        public Task CreateUninitializedSessionItemAsync(string id, SessionStateStoreData item, int timeout)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task CreateOrUpdateSessionStateItemAsync(bool newItem, string id, SessionStateStoreData item, int itemTimeout,
+            int lockCookie, int origStreamLen)
+        {
+            throw new NotImplementedException();
+        }
+
         #endregion
         
     }    

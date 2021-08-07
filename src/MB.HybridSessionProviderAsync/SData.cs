@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Web.SessionState;
 
 // ReSharper disable UnusedMember.Global
 
@@ -46,6 +47,26 @@ namespace MB.HybridSessionProviderAsync
             return s;
         }
 
+        public static SData Add(string id, SessionStateStoreData itemData, int timeout)
+        {
+            var utcDate = DateTime.UtcNow;
+            var s = new SData()
+            {
+                SessionId = id,
+                Timeout = timeout,
+                StoreData = itemData,
+                Expires = utcDate.AddMinutes(timeout),
+                LockDate = utcDate,
+                LockDateLocal = DateTime.Now,
+                LockCookie = 1,
+                Flags = 1
+            };
+            Data.TryAdd(id, s);
+            return s;
+        }
+
+        public SessionStateStoreData StoreData { get; set; }
+
         public DateTime LockDateLocal { get; set; }
 
         public string SessionId { get; set; }
@@ -72,6 +93,11 @@ namespace MB.HybridSessionProviderAsync
             SessionItemLong = buf;
         }
 
+        public void Update(SessionStateStoreData itemData, int timeout)
+        {
+            AddMinutes(timeout);
+            StoreData = itemData;
+        }
 
         public void AddMinutes(int minutes)
         {
@@ -105,5 +131,7 @@ namespace MB.HybridSessionProviderAsync
         {
             return Clone();
         }
+
+
     }
 }
