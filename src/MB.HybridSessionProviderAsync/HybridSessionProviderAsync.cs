@@ -108,7 +108,7 @@ namespace MB.HybridSessionProviderAsync
         }
 
 
-
+        /// <inheritdoc />
         protected override async Task<GetItemResult> DoGet(HttpContextBase context, string id, bool exclusive, CancellationToken cancellationToken)
         {
             if (id.Length > SessionIDManager.SessionIDMaxLength)
