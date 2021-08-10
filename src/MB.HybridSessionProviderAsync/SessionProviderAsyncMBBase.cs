@@ -40,6 +40,7 @@ namespace MB.HybridSessionProviderAsync
         private static bool s_oneTimeInited = false;
         protected static object s_lock = new object();
         internal static ISqlSessionStateRepository s_sqlSessionStateRepository;
+        internal static bool _hasConnection;
 
         /// <summary>
         /// Initialize the provider through the configuration
@@ -77,10 +78,12 @@ namespace MB.HybridSessionProviderAsync
                         s_compressionEnabled = ssc.CompressionEnabled;
                         if (connectionString == null)
                         {
+                            _hasConnection = false;
                             s_sqlSessionStateRepository = new MemoryStateRepository();
                         }
                         else
                         {
+                            _hasConnection = true;
                             if (ShouldUseInMemoryTable(config))
                             {
                                 s_sqlSessionStateRepository = new SqlInMemoryTableSessionStateRepository(

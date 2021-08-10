@@ -20,8 +20,7 @@ namespace MB.HybridSessionProviderAsync
     /// </summary>
     public class HybridSessionProviderAsync : SessionProviderAsyncMBBase
     {
- 
-
+         
 
         /// <inheritdoc />
         public override async Task CreateUninitializedItemAsync(
@@ -43,9 +42,16 @@ namespace MB.HybridSessionProviderAsync
             var item = new SessionStateStoreData(new SessionStateItemCollection(),
                         GetSessionStaticObjects(context.ApplicationInstance.Context),
                         timeout);
-
-            SerializeStoreData(item, SqlSessionStateRepositoryUtil.DefaultItemLength, out var buf, out var length, s_compressionEnabled);
-            await s_sqlSessionStateRepository.CreateUninitializedSessionItemAsync(id, length, buf, timeout);
+            if (_hasConnection)
+            {
+                SerializeStoreData(item, SqlSessionStateRepositoryUtil.DefaultItemLength, out var buf, out var length,
+                    s_compressionEnabled);
+                await s_sqlSessionStateRepository.CreateUninitializedSessionItemAsync(id, length, buf, timeout);
+            }
+            else
+            {
+                await s_sqlSessionStateRepository.CreateUninitializedSessionItemAsync(id, item, timeout);
+            }
         }
 
         /// <inheritdoc />
@@ -74,24 +80,34 @@ namespace MB.HybridSessionProviderAsync
                 throw new ArgumentException(SR.Session_id_too_long);
             }
             id = AppendAppIdHash(id);
-
-            try
+            if(_hasConnection)
             {
-                SerializeStoreData(item, SqlSessionStateRepositoryUtil.DefaultItemLength, out buf, out length, s_compressionEnabled);
-            }
-            catch
-            {
-                if (!newItem)
+                try
                 {
-                    await ReleaseItemExclusiveAsync(context, id, lockId, cancellationToken);
+                    SerializeStoreData(item, SqlSessionStateRepositoryUtil.DefaultItemLength, out buf, out length,
+                        s_compressionEnabled);
                 }
-                throw;
+                catch
+                {
+                    if (!newItem)
+                    {
+                        await ReleaseItemExclusiveAsync(context, id, lockId, cancellationToken);
+                    }
+
+                    throw;
+                }
+
+                lockCookie = (int?) lockId ?? 0;
+
+                await s_sqlSessionStateRepository.CreateOrUpdateSessionStateItemAsync(newItem, id, buf, length,
+                    item.Timeout, lockCookie, OrigStreamLen);
             }
+            else
+                await s_sqlSessionStateRepository.ReleaseSessionItemAsync(id, lockId);
 
-            lockCookie = (int?)lockId ?? 0;
-
-            await s_sqlSessionStateRepository.CreateOrUpdateSessionStateItemAsync(newItem, id, buf, length, item.Timeout, lockCookie, OrigStreamLen);
         }
+
+
 
         protected override async Task<GetItemResult> DoGet(HttpContextBase context, string id, bool exclusive, CancellationToken cancellationToken)
         {
@@ -100,27 +116,34 @@ namespace MB.HybridSessionProviderAsync
                 throw new ArgumentException(SR.Session_id_too_long);
             }
             id = AppendAppIdHash(id);
-
-            SessionStateStoreData data;
+             
             var s = await s_sqlSessionStateRepository.GetSessionStateItemAsync(id, exclusive);
             var sessionItem = s.Item1;
+            SessionStateStoreData data = s.Item2;
             if (sessionItem == null)
             {
                 return null;
             }
-            if (sessionItem.Item == null)
+            if (sessionItem.Item == null && data == null)
             {
                 return new GetItemResult(null, sessionItem.Locked, sessionItem.LockAge, sessionItem.LockId, sessionItem.Actions);
             }
-
-            using (var stream = new MemoryStream(sessionItem.Item))
+            if(_hasConnection)
             {
-                data = DeserializeStoreData(context, stream, s_compressionEnabled);
-                OrigStreamLen = (int)stream.Position;
-            }
+                using (var stream = new MemoryStream(sessionItem.Item))
+                {
+                    data = DeserializeStoreData(context, stream, s_compressionEnabled);
+                    OrigStreamLen = (int) stream.Position;
+                }
 
+                return new GetItemResult(data, sessionItem.Locked, sessionItem.LockAge, sessionItem.LockId,
+                    sessionItem.Actions);
+            }
             return new GetItemResult(data, sessionItem.Locked, sessionItem.LockAge, sessionItem.LockId, sessionItem.Actions);
+
         }
+
+        #region Serailization 
 
         // Internal code copied from SessionStateUtility
         internal static void SerializeStoreData(
@@ -251,5 +274,7 @@ namespace MB.HybridSessionProviderAsync
 
             return new SessionStateStoreData(sessionItems, staticObjects, timeout);
         }
+
+        #endregion
     }
 }

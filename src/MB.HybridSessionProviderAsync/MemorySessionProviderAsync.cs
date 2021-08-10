@@ -43,27 +43,7 @@ namespace MB.HybridSessionProviderAsync
         }
 
 
-        /// <inheritdoc />
-        public override async Task ReleaseItemExclusiveAsync(
-            HttpContextBase context,
-            string id,
-            object lockId,
-            CancellationToken cancellationToken)
-        {
-            if (id == null)
-            {
-                throw new ArgumentNullException(nameof(id));
-            }
-            if (id.Length > SessionIDManager.SessionIDMaxLength)
-            {
-                throw new ArgumentException(SR.Session_id_too_long);
-            }
-
-            id = AppendAppIdHash(id);
-
-            await s_sqlSessionStateRepository.ReleaseSessionItemAsync(id, lockId);
-        }
-
+       
 
         /// <inheritdoc />
         public override async Task SetAndReleaseItemExclusiveAsync(
@@ -96,11 +76,6 @@ namespace MB.HybridSessionProviderAsync
             await s_sqlSessionStateRepository.CreateOrUpdateSessionStateItemAsync(newItem, id, item, item.Timeout, lockCookie, OrigStreamLen);
         }
 
-        /// <inheritdoc />
-        public override bool SetItemExpireCallback(SessionStateItemExpireCallback expireCallback)
-        {
-            return false;
-        }
 
         protected override async Task<GetItemResult> DoGet(HttpContextBase context, string id, bool exclusive, CancellationToken cancellationToken)
         {
@@ -125,7 +100,6 @@ namespace MB.HybridSessionProviderAsync
 
             return new GetItemResult(data, sessionItem.Locked, sessionItem.LockAge, sessionItem.LockId, sessionItem.Actions);
         }
-
 
 
 

@@ -1,4 +1,4 @@
-set v=0.0.0.45919
+set v=0.0.0.45920
 
 dotnet build src\MB.HybridSessionProviderAsync\MB.HybridSessionProviderAsync.csproj  -c Release
 
