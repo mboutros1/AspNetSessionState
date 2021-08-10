@@ -153,7 +153,8 @@ namespace MB.HybridSessionProviderAsync
 
         public Task CreateUninitializedSessionItemAsync(string id, SessionStateStoreData item, int timeout)
         {
-            throw new NotImplementedException();
+            SData.Add(id, item, timeout);
+            return Task.CompletedTask;
         }
 
        
