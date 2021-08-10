@@ -2,6 +2,6 @@
 {
     public static class Version
     {
-        public const string ProviderVersion = "0.0.0.45918";
+        public const string ProviderVersion = "0.0.0.45919";
     }
 }
